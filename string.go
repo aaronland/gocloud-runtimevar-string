@@ -18,6 +18,10 @@ import (
 
 func OpenString(ctx context.Context, url_str string) (string, error) {
 
+	if url_str == "" {
+		return "", errors.New("Invalid URL string")
+	}
+	
 	parsed, err := url.Parse(url_str)
 
 	if err != nil {
