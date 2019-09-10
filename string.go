@@ -3,14 +3,10 @@ package runtimevar
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/aaronland/go-aws-session"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	gc_runtimevar "gocloud.dev/runtimevar"
-	_ "gocloud.dev/runtimevar/blobvar"
-	_ "gocloud.dev/runtimevar/constantvar"
-	_ "gocloud.dev/runtimevar/filevar"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -21,17 +17,17 @@ func OpenString(ctx context.Context, url_str string) (string, error) {
 	if url_str == "" {
 		return "", errors.New("Invalid URL string")
 	}
-	
+
 	parsed, err := url.Parse(url_str)
 
 	if err != nil {
 		return "", err
 	}
 
+	query := parsed.Query()
+
 	switch strings.ToUpper(parsed.Scheme) {
 	case "AWSSECRETSMANAGER":
-
-		query := parsed.Query()
 
 		aws_region := query.Get("region")
 		aws_creds := query.Get("credentials")
@@ -66,8 +62,18 @@ func OpenString(ctx context.Context, url_str string) (string, error) {
 
 	default:
 
-		path := fmt.Sprintf("%s?decoder=string", url_str)
-		v, err := gc_runtimevar.OpenVariable(ctx, path)
+		decoder := query.Get("decoder")
+
+		if decoder != "" && decoder != "string" {
+			return "", errors.New("Invalid decoder")
+		} else {
+			query.Set("decoder", "string")
+
+			parsed.RawQuery = query.Encode()
+			url_str = parsed.String()
+		}
+
+		v, err := gc_runtimevar.OpenVariable(ctx, url_str)
 
 		if err != nil {
 			return "", err
